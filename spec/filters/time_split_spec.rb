@@ -1,14 +1,14 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
-require "logstash/filters/split"
+require "logstash/filters/time_split"
 require "logstash/event"
 
-describe LogStash::Filters::Split do
+describe LogStash::Filters::Time_Split do
 
   describe "all defaults" do
     config <<-CONFIG
       filter {
-        split { }
+        time_split { }
       }
     CONFIG
 ###
@@ -23,7 +23,7 @@ describe LogStash::Filters::Split do
   describe "custome terminator" do
     config <<-CONFIG
       filter {
-        split {
+        time_split {
           terminator => "\t"
         }
       }
@@ -40,7 +40,7 @@ describe LogStash::Filters::Split do
   describe "custom field" do
     config <<-CONFIG
       filter {
-        split {
+        time_split {
           field => "custom"
         }
       }
@@ -60,7 +60,7 @@ describe LogStash::Filters::Split do
   describe "split array" do
     config <<-CONFIG
       filter {
-        split {
+        time_split {
           field => "array"
         }
       }
@@ -85,7 +85,7 @@ describe LogStash::Filters::Split do
   describe "split array into new field" do
     config <<-CONFIG
       filter {
-        split {
+        time_split {
           field => "array"
           target => "element"
         }
@@ -101,7 +101,7 @@ describe LogStash::Filters::Split do
   end
 
   context "when invalid type is passed" do
-    let(:filter) { LogStash::Filters::Split.new({"field" => "field"}) }
+    let(:filter) { LogStash::Filters::Time_Split.new({"field" => "field"}) }
     let(:logger) { filter.logger }
     let(:event) { event = LogStash::Event.new("field" => 10) }
 
@@ -115,7 +115,7 @@ describe LogStash::Filters::Split do
     end
 
     it "should add a '_splitparsefailure' tag" do
-      expect(event.get("tags")).to include(LogStash::Filters::Split::PARSE_FAILURE_TAG)
+      expect(event.get("tags")).to include(LogStash::Filters::Time_Split::PARSE_FAILURE_TAG)
     end
   end
 end

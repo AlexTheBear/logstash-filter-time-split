@@ -40,10 +40,10 @@ require "logstash/namespace"
 #
 # The end result of each split is a complete copy of the event
 # with only the current split section of the given field changed.
-class LogStash::Filters::Split < LogStash::Filters::Base
+class LogStash::Filters::Time_Split < LogStash::Filters::Base
   PARSE_FAILURE_TAG = '_split_type_failure'.freeze
 
-  config_name "split"
+  config_name "time_split"
 
   # The string to split on. This is usually a line terminator, but can be any
   # string. If you are splitting a JSON array into multiple events, you can ignore this field.
