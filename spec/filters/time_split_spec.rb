@@ -1,121 +1,31 @@
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/filters/time_split"
+require "logstash/timestamp"
 require "logstash/event"
+
+require "date"
 
 describe LogStash::Filters::Time_Split do
 
   describe "all defaults" do
     config <<-CONFIG
       filter {
-        time_split { }
+        time_split {
+          start => "start"
+          end => "end"
+        }
       }
     CONFIG
 ###
-    sample "big\nbird\nsesame street" do
-      insist { subject.length } == 3
-      insist { subject[0].get("message") } == "big"
-      insist { subject[1].get("message") } == "bird"
-      insist { subject[2].get("message") } == "sesame street"
-    end
-  end
-
-  describe "custome terminator" do
-    config <<-CONFIG
-      filter {
-        time_split {
-          terminator => "\t"
-        }
-      }
-    CONFIG
-
-    sample "big\tbird\tsesame street" do
-      insist { subject.length } == 3
-      insist { subject[0].get("message") } == "big"
-      insist { subject[1].get("message") } == "bird"
-      insist { subject[2].get("message") } == "sesame street"
-    end
-  end
-
-  describe "custom field" do
-    config <<-CONFIG
-      filter {
-        time_split {
-          field => "custom"
-        }
-      }
-    CONFIG
-
-    sample("custom" => "big\nbird\nsesame street", "do_not_touch" => "1\n2\n3") do
+    sample("start" => Time.new(2016,7,12), "end" => Time.new(2016,7,14), "replicated" => "some string") do
       insist { subject.length } == 3
       subject.each do |s|
-         insist { s.get("do_not_touch") } == "1\n2\n3"
+        insist { s.get("replicated") } == "some string"
       end
-      insist { subject[0].get("custom") } == "big"
-      insist { subject[1].get("custom") } == "bird"
-      insist { subject[2].get("custom") } == "sesame street"
-    end
-  end
-
-  describe "split array" do
-    config <<-CONFIG
-      filter {
-        time_split {
-          field => "array"
-        }
-      }
-    CONFIG
-
-    sample("array" => ["big", "bird", "sesame street"], "untouched" => "1\n2\n3") do
-      insist { subject.length } == 3
-      subject.each do |s|
-         insist { s.get("untouched") } == "1\n2\n3"
-      end
-      insist { subject[0].get("array") } == "big"
-      insist { subject[1].get("array") } == "bird"
-      insist { subject[2].get("array") } == "sesame street"
-    end
-
-    sample("array" => ["big"], "untouched" => "1\n2\n3") do
-      insist { subject.is_a?(Logstash::Event) }
-      insist { subject.get("array") } == "big"
-    end
-  end
-
-  describe "split array into new field" do
-    config <<-CONFIG
-      filter {
-        time_split {
-          field => "array"
-          target => "element"
-        }
-      }
-    CONFIG
-
-    sample("array" => ["big", "bird", "sesame street"]) do
-      insist { subject.length } == 3
-      insist { subject[0].get("element") } == "big"
-      insist { subject[1].get("element") } == "bird"
-      insist { subject[2].get("element") } == "sesame street"
-    end
-  end
-
-  context "when invalid type is passed" do
-    let(:filter) { LogStash::Filters::Time_Split.new({"field" => "field"}) }
-    let(:logger) { filter.logger }
-    let(:event) { event = LogStash::Event.new("field" => 10) }
-
-    before do
-      allow(filter.logger).to receive(:warn).with(anything)
-      filter.filter(event)
-    end
-    
-    it "should log an error" do
-      expect(filter.logger).to have_received(:warn).with(/Only String and Array types are splittable/)
-    end
-
-    it "should add a '_splitparsefailure' tag" do
-      expect(event.get("tags")).to include(LogStash::Filters::Time_Split::PARSE_FAILURE_TAG)
+      insist { subject[0].get("@timestamp") } == LogStash::Timestamp.at(Time.new(2016,7,12))
+      insist { subject[1].get("@timestamp") } == LogStash::Timestamp.at(Time.new(2016,7,13))
+      insist { subject[2].get("@timestamp") } == LogStash::Timestamp.at(Time.new(2016,7,14))
     end
   end
 end

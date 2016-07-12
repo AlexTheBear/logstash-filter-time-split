@@ -1,6 +1,9 @@
 # encoding: utf-8
 require "logstash/filters/base"
 require "logstash/namespace"
+require "logstash/timestamp"
+
+require "date"
 
 # The split filter clones an event by splitting one of its fields and
 # placing each value resulting from the split into a clone of the original
@@ -41,63 +44,36 @@ require "logstash/namespace"
 # The end result of each split is a complete copy of the event
 # with only the current split section of the given field changed.
 class LogStash::Filters::Time_Split < LogStash::Filters::Base
-  PARSE_FAILURE_TAG = '_split_type_failure'.freeze
-
   config_name "time_split"
 
-  # The string to split on. This is usually a line terminator, but can be any
-  # string. If you are splitting a JSON array into multiple events, you can ignore this field.
-  config :terminator, :validate => :string, :default => "\n"
+  # The field from which we'll take the start time, this is expected to
+  # be a date type
+  config :start, :validate => :string
 
-  # The field which value is split by the terminator.  
-  # Can be a multiline message or the ID of an array.  
-  # Nested arrays are referenced like: "[object_id][array_id]"
-  config :field, :validate => :string, :default => "message"
-
-  # The field within the new event which the value is split into.
-  # If not set, the target field defaults to split field name.
-  config :target, :validate => :string
+  # The field from which we'll take the end time, this is expected to
+  # be a date type
+  config :end, :validate => :string
 
   public
   def register
     # Nothing to do
   end # def register
 
+  private
+  def toDate(time)
+    Date.parse(time.to_s)
+  end
+
   public
   def filter(event)
-    
+    start_time = toDate(event.get(@start))
+    end_time = toDate(event.get(@end))
 
-    original_value = event.get(@field)
-
-    if original_value.is_a?(Array)
-      splits = original_value
-    elsif original_value.is_a?(String)
-      # Using -1 for 'limit' on String#split makes ruby not drop trailing empty
-      # splits.
-      splits = original_value.split(@terminator, -1)
-    else
-      logger.warn("Only String and Array types are splittable. field:#{@field} is of type = #{original_value.class}")
-      event.tag(PARSE_FAILURE_TAG)
-      return
-    end
-
-    # Skip filtering if splitting this event resulted in only one thing found.
-    return if splits.length == 1 && original_value.is_a?(String)
-    #or splits[1].empty?
-
-    splits.each do |value|
-      next if value.empty?
-
+    start_time.step(end_time,1).each do |value|
       event_split = event.clone
-      @logger.debug("Split event", :value => value, :field => @field)
-      if @target.nil?
-        event_split.set(@field, value)
-      else
-        event_split.set(@target, value)
-      end
-      filter_matched(event_split)
 
-      # Push this new event onto the stack at the LogStash::FilterWorker
+      event_split.set("@timestamp",LogStash::Timestamp.at(value.to_time))
+
       yield event_split
     end
 
