@@ -18,14 +18,14 @@ describe LogStash::Filters::Time_Split do
       }
     CONFIG
 ###
-    sample("start" => Time.new(2016,7,12), "end" => Time.new(2016,7,14), "replicated" => "some string") do
+    sample("start" => LogStash::Timestamp.new(Time.new(2016,1,12)), "end" => LogStash::Timestamp.new(Time.new(2016,1,14)), "replicated" => "some string") do
       insist { subject.length } == 3
       subject.each do |s|
-        insist { s.get("replicated") } == "some string"
+        insist { s["replicated"] } == "some string"
       end
-      insist { subject[0].get("@timestamp") } == LogStash::Timestamp.at(Time.new(2016,7,12))
-      insist { subject[1].get("@timestamp") } == LogStash::Timestamp.at(Time.new(2016,7,13))
-      insist { subject[2].get("@timestamp") } == LogStash::Timestamp.at(Time.new(2016,7,14))
+      insist { subject[0]["@timestamp"].to_s } == LogStash::Timestamp.at(Time.new(2016,1,12)).to_s
+      insist { subject[1]["@timestamp"].to_s } == LogStash::Timestamp.at(Time.new(2016,1,13)).to_s
+      insist { subject[2]["@timestamp"].to_s } == LogStash::Timestamp.at(Time.new(2016,1,14)).to_s
     end
   end
 end

@@ -44,6 +44,8 @@ require "date"
 # The end result of each split is a complete copy of the event
 # with only the current split section of the given field changed.
 class LogStash::Filters::Time_Split < LogStash::Filters::Base
+  PARSE_FAILURE_TAG = '_time_split_type_failure'.freeze
+
   config_name "time_split"
 
   # The field from which we'll take the start time, this is expected to
@@ -64,15 +66,30 @@ class LogStash::Filters::Time_Split < LogStash::Filters::Base
     Date.parse(time.to_s)
   end
 
+  private
+  def invalidDate(time)
+    !time.is_a?(LogStash::Timestamp)
+  end
+
   public
   def filter(event)
-    start_time = toDate(event.get(@start))
-    end_time = toDate(event.get(@end))
+    start_time = event[@start]
+    end_time = event[@end]
+
+    if invalidDate(start_time) || invalidDate(end_time)
+      logger.warn("Only dates are types are splittable")
+      puts "WRONG FORMAT"
+      event.tag(PARSE_FAILURE_TAG)
+      return
+    end
+
+    start_time = toDate(start_time)
+    end_time = toDate(end_time)
 
     start_time.step(end_time,1).each do |value|
       event_split = event.clone
 
-      event_split.set("@timestamp",LogStash::Timestamp.at(value.to_time))
+      event_split["@timestamp"]=LogStash::Timestamp.at(value.to_time)
 
       yield event_split
     end
