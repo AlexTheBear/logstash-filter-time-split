@@ -1,21 +1,75 @@
 # Logstash Plugin
 
-[![Travis Build Status](https://travis-ci.org/logstash-plugins/logstash-filter-split.svg)](https://travis-ci.org/logstash-plugins/logstash-filter-split)
-
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
 It is fully free and fully open source. The license is Apache 2.0, meaning you are pretty much free to use it however you want in whatever way.
 
 ## Documentation
 
-Logstash provides infrastructure to automatically generate documentation for this plugin. We use the asciidoc format to write documentation so any comments in the source code will be first converted into asciidoc and then into html. All plugin documentation are placed under one [central location](http://www.elastic.co/guide/en/logstash/current/).
+ElasticSearch is fantastic at dealing with point based time data but is not setup to elegantly deal with time spans. This is a plugin for logstash that allows data based on a time range to be split in to
+multiple records incremented per day so that it can be used within ES.
 
-- For formatting code or config example, you can use the asciidoc `[source,ruby]` directive
-- For more asciidoc formatting tips, see the excellent reference here https://github.com/elastic/docs#asciidoc-guide
+## Example
+Suppose you have data structured as per the CSV line below:
+```
+2/3/2016,5/3/2016,Message
+````
+Using this plugin the data can be split in to the following lines (first token is @timestamp within ES):
+```csv
+2/3/2016,2/3/2016,5/3/2016,Message
+3/3/2016,2/3/2016,5/3/2016,Message
+4/3/2016,2/3/2016,5/3/2016,Message
+5/3/2016,2/3/2016,5/3/2016,Message
+```
 
-## Need Help?
+## Logstash Config
+This plugin is really basic, it assumes a start date and end date field where start is before end. Given both are assumed to be dates the input may need to be converted prior to using this plugin.
+```ruby
+input {
+	file {
+		path => "afile.csv"
+		type => "core2"
+		start_position => "beginning"
+	}
+}
 
-Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum.
+filter {
+	csv {
+		columns => ["Start","End","message"]
+		separator => ","
+	}
+	date {
+		match => ["Start", "d/M/YYYY"]
+	}
+	date {
+		match => ["Start", "d/M/YYYY"]
+		target => "Start"
+	}
+	date {
+		match => ["End", "d/M/YYYY"]
+		target => "End"
+	}
+	time_split {
+		start => "Start"
+		end => "End"
+	}
+}
+
+output {
+	elasticsearch {
+		action => "index"
+		hosts => ["localhost"]
+		index => "logstash-%{+YYYY.MM.dd}"
+		workers => 1
+	}
+}
+```
+## Sanity Warning
+Logstash is fast moving development so plugin development, in my experience, seems very tide to the version of logstash used. If you are having difficultly installing and get an unholly stack trace I'd first look within the 'logstash-filter-time-split.gemspec' file for the following line:
+```ruby
+  s.add_runtime_dependency "logstash-core-plugin-api", "~> 1.20.0"
+  ```
+  This gem *must* match that used within your version of logstash. If you find this doesn't match then change it but for the love of God re-run the tests, you may find further issues.
 
 ## Developing
 
@@ -51,7 +105,7 @@ bundle exec rspec
 
 - Edit Logstash `Gemfile` and add the local plugin path, for example:
 ```ruby
-gem "logstash-filter-awesome", :path => "/your/local/logstash-filter-awesome"
+gem "logstash-time-split", :path => "/your/local/logstash-time-split"
 ```
 - Install plugin
 ```sh
@@ -61,11 +115,6 @@ bin/logstash-plugin install --no-verify
 # Prior to Logstash 2.3
 bin/plugin install --no-verify
 
-```
-- Run Logstash with your plugin
-```sh
-bin/logstash -e 'filter {awesome {}}'
-```
 At this point any modifications to the plugin code will be applied to this local Logstash setup. After modifying the plugin, simply rerun Logstash.
 
 #### 2.2 Run in an installed Logstash
@@ -74,7 +123,7 @@ You can use the same **2.1** method to run your plugin in an installed Logstash 
 
 - Build your plugin gem
 ```sh
-gem build logstash-filter-awesome.gemspec
+gem build logstash-time-split.gemspec
 ```
 - Install the plugin from the Logstash home
 ```sh
