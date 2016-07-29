@@ -23,7 +23,7 @@ Using this plugin the data can be split in to the following lines (first token i
 ```
 
 ## Logstash Config
-This plugin is really basic, it assumes a start date and end date field where start is before end. Given both are assumed to be dates the input may need to be converted prior to using this plugin.
+This plugin is really basic, it assumes a start date and end date fields are dates, order is not important; start can be before end and they will be switched internally. Given both are assumed to be dates the input may need to be converted prior to using this plugin.
 ```ruby
 input {
 	file {
@@ -96,7 +96,7 @@ bundle install
 - Run tests
 
 ```sh
-bundle exec rspec
+bundle exec rspec spec
 ```
 
 ### 2. Running your unpublished Plugin in Logstash
